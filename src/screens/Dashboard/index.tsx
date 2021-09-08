@@ -30,6 +30,7 @@ import {
   RemoveButton,
   LoadContainer,
 } from './styles';
+import { useAuth } from '../../hooks/auth';
 
 export interface DataListProps extends TransactionCardProps {
   id: string;
@@ -64,22 +65,27 @@ export function Dashboard() {
     },
   });
 
+  const { user, signOut } = useAuth();
   const theme = useTheme();
 
   function getLastTransactionDate(
     collection: DataListProps[],
     type: 'positive' | 'negative' | 'total'
   ) {
-    let lastTransactions = new Date(
+    const collectionFiltered = collection.filter((transaction) =>
+      type === 'total' ? true : transaction.type === type
+    );
+
+    if (collectionFiltered.length === 0) {
+      return collectionFiltered.length;
+    }
+
+    const lastTransactions = new Date(
       Math.max.apply(
         Math,
-        collection
-          .filter((transaction: DataListProps) =>
-            type === 'total' ? true : transaction.type === type
-          )
-          .map((transaction: DataListProps) =>
-            new Date(transaction.date).getTime()
-          )
+        collectionFiltered.map((transaction: DataListProps) =>
+          new Date(transaction.date).getTime()
+        )
       )
     );
 
@@ -92,7 +98,7 @@ export function Dashboard() {
   }
 
   async function loadTransactions() {
-    const dataKey = '@gofinances:transactions';
+    const dataKey = `@gofinances:transactions_user:${user.id}`;
     const response = await AsyncStorage.getItem(dataKey);
     const transactions = response ? JSON.parse(response) : [];
 
@@ -143,10 +149,7 @@ export function Dashboard() {
       'negative'
     );
 
-    const totalInterval = `01 a ${getLastTransactionDate(
-      transactions,
-      'total'
-    )}`;
+    const totalInterval = getLastTransactionDate(transactions, 'total');
 
     const total = entriesTotal - expensesTotal;
 
@@ -156,28 +159,34 @@ export function Dashboard() {
           style: 'currency',
           currency: 'BRL',
         }),
-        lastTransaction: `Última entrada dia ${lastTransactionsEntries}`,
+        lastTransaction: lastTransactionsEntries
+          ? `Última entrada dia ${lastTransactionsEntries}`
+          : 'Não há transações',
       },
       expenses: {
         amount: expensesTotal.toLocaleString('pt-BR', {
           style: 'currency',
           currency: 'BRL',
         }),
-        lastTransaction: `Última saída dia ${lastTransactionsExpenses}`,
+        lastTransaction: lastTransactionsExpenses
+          ? `Última saída dia ${lastTransactionsExpenses}`
+          : 'Não há transações',
       },
       total: {
         amount: total.toLocaleString('pt-BR', {
           style: 'currency',
           currency: 'BRL',
         }),
-        lastTransaction: totalInterval,
+        lastTransaction: totalInterval
+          ? `1 a ${totalInterval}`
+          : 'Não há transações',
       },
     });
     setIsLoading(false);
   }
 
   async function handleClearList() {
-    const dataKey = '@gofinances:transactions';
+    const dataKey = `@gofinances:transactions_user:${user.id}`;
 
     await AsyncStorage.removeItem(dataKey);
 
@@ -219,18 +228,24 @@ export function Dashboard() {
           <Header>
             <UserWrapper>
               <UserInfo>
-                <Photo source={{ uri: 'https://github.com/bprinzo.png' }} />
+                <Photo source={{ uri: user.photo }} />
                 <User>
                   <UserGreeting>Olá, </UserGreeting>
-                  <UserName>Bruno</UserName>
+                  <UserName>{user.name}</UserName>
                 </User>
               </UserInfo>
-              <LogoutButton onPress={() => {}}>
+              <LogoutButton onPress={signOut}>
                 <Icon name="power" />
               </LogoutButton>
             </UserWrapper>
           </Header>
           <HighlightCards>
+            <HighlightCard
+              title="Total"
+              amount={highlightData.total.amount}
+              lastTransaction={highlightData.total.lastTransaction}
+              type="total"
+            />
             <HighlightCard
               title="Entradas"
               amount={highlightData.entries.amount}
@@ -242,12 +257,6 @@ export function Dashboard() {
               amount={highlightData.expenses.amount}
               lastTransaction={highlightData.expenses.lastTransaction}
               type="down"
-            />
-            <HighlightCard
-              title="Total"
-              amount={highlightData.total.amount}
-              lastTransaction={highlightData.total.lastTransaction}
-              type="total"
             />
           </HighlightCards>
           <Transactions>

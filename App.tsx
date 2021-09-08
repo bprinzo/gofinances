@@ -6,7 +6,7 @@ import { ThemeProvider } from 'styled-components';
 import 'intl';
 import 'intl/locale-data/jsonp/pt-BR';
 
-import { NavigationContainer } from '@react-navigation/native';
+import { Routes } from './src/routes';
 
 import {
   useFonts,
@@ -20,7 +20,7 @@ import { AppRoutes } from './src/routes/app.routes';
 
 import { SignIn } from './src/screens/Signin';
 
-import { AuthProvider } from './src/hooks/auth';
+import { AuthProvider, useAuth } from './src/hooks/auth';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -29,19 +29,18 @@ export default function App() {
     Poppins_700Bold,
   });
 
-  if (!fontsLoaded) {
+  const { isUserDataLoading } = useAuth();
+
+  if (!fontsLoaded || isUserDataLoading) {
     return <AppLoading />;
   }
 
   return (
     <ThemeProvider theme={theme}>
-      <NavigationContainer>
-        <StatusBar barStyle="light-content" />
-
-        <AuthProvider>
-          <SignIn />
-        </AuthProvider>
-      </NavigationContainer>
+      <StatusBar barStyle="light-content" />
+      <AuthProvider>
+        <Routes />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
